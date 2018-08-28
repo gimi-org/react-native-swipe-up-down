@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import {
   Platform,
+  Animated,
   StyleSheet,
   Text,
   View,
@@ -27,20 +28,27 @@ type Props = {
   onMoveUp?: () => void,
   setDeltaY?: Function,
   backgroundColor?: string
-};
-let self
-export default class SwipeUpDown extends Component<Props> {
+}
 
+type State = {
+  collapsed: boolean,
+  animatedY: *,
+  offset: number
+}
+let self
+export default class SwipeUpDown extends Component<Props, State> {
   static openBar = () => self.showFull()
   static closeBar = () => self.showMini()
 
   constructor(props) {
     super(props);
     this.state = {
-      collapsed: true
-    };
+      collapsed: true,
+      animatedY: new Animated.Value(50),
+      offset: props.withTabBar ? 100 : 50
+    }
     this.disablePressToShow = props.disablePressToShow || false;
-    this.SWIPE_HEIGHT = props.swipeHeight || 60;
+    this.SWIPE_HEIGHT = props.swipeHeight || 50;
     this._panResponder = null;
     this.top = this.SWIPE_HEIGHT;
     this.height = this.SWIPE_HEIGHT;
@@ -62,43 +70,21 @@ export default class SwipeUpDown extends Component<Props> {
     self = this
   }
 
-  updateNativeProps() {
-    this.viewRef && this.viewRef.setNativeProps && this.viewRef.setNativeProps(this.customStyle)
-  }
-
-  setLayoutAnimation = () => {
-    var CustomLayoutSpring = {
-      duration: 400,
-      update: {
-        type: LayoutAnimation.Types.spring,
-        springDamping: 0.7,
-      }
-    }
-    LayoutAnimation.configureNext(CustomLayoutSpring)
-  }
-
   _onPanResponderMove(event, gestureState) {
     const {onMoveUp, onMoveDown, setDeltaY} = this.props
+    let {animatedY, offset} = this.state
     setDeltaY(this.convertRange(DEVICE_HEIGHT + gestureState.dy, [0, DEVICE_HEIGHT], [0, 180]))
-    if (gestureState.dy > 0 && !this.checkCollapsed) {
-      // SWIPE DOWN
-      this.customStyle.style.top = this.top + gestureState.dy
-      this.customStyle.style.height = DEVICE_HEIGHT - gestureState.dy
-      this.updateNativeProps();
-      onMoveDown && onMoveDown();
+    // SWIPE DOWN
+    if (gestureState.dy > 0) {
+      animatedY.setValue(DEVICE_HEIGHT - gestureState.dy - offset)
+      onMoveDown && onMoveDown()
     }
+    // SWIPE UP
     else if (this.checkCollapsed && gestureState.dy < 0) {
-      this.top = 0;
-      this.customStyle.style.top = DEVICE_HEIGHT + gestureState.dy - 120;
-      this.customStyle.style.height = -gestureState.dy + this.SWIPE_HEIGHT;
-      this.updateNativeProps();
+       animatedY.setValue(-gestureState.dy + this.SWIPE_HEIGHT)
     }
     else if (this.checkCollapsed && gestureState.dy < -20) {
-      // SWIPE UP
-      this.top = 0;
-      this.customStyle.style.top = DEVICE_HEIGHT + gestureState.dy - 120;
-      this.customStyle.style.height = -gestureState.dy + this.SWIPE_HEIGHT;
-      this.updateNativeProps();
+      animatedY.setValue(-gestureState.dy + this.SWIPE_HEIGHT)
       onMoveUp && onMoveUp();
     }
   }
@@ -109,51 +95,48 @@ export default class SwipeUpDown extends Component<Props> {
 
 
   _onPanResponderRelease(event, gestureState) {
+    let {animatedY} = this.state
+    animatedY.flattenOffset()
     if (gestureState.dy < -100 || gestureState.dy < 100) return this.showFull()
     return this.showMini()
   }
 
   showFull() {
-    this.setState({collapsed: false})
     const {onShowFull, setDeltaY} = this.props
-    this.customStyle.style.top = 0;
-    this.customStyle.style.height = DEVICE_HEIGHT;
-    this.updateNativeProps()
-    this.setLayoutAnimation()
-    this.checkCollapsed = false;
+    let {animatedY, offset} = this.state
+    this.setState({collapsed: false})
+    Animated.spring(animatedY, {toValue: DEVICE_HEIGHT - offset, friction: 7}).start()
     setDeltaY(180)
-    onShowFull && onShowFull();
+    onShowFull && onShowFull()
   }
 
   showMini() {
     this.setState({collapsed: true})
     const {onShowMini, setDeltaY} = this.props
-    this.customStyle.style.top = DEVICE_HEIGHT - this.SWIPE_HEIGHT - 70;
-    this.customStyle.style.height = this.SWIPE_HEIGHT;
-    this.updateNativeProps()
-    this.setLayoutAnimation()
-    this.checkCollapsed = true;
+    let {animatedY} = this.state
+    Animated.spring(animatedY, {toValue: 50, friction: 7}).start()
+    this.checkCollapsed = true
     setDeltaY(0)
-    onShowMini && onShowMini();
+    onShowMini && onShowMini()
   }
 
   render() {
     const {itemMini, itemFull, style, backgroundColor} = this.props
-    const {collapsed} = this.state;
-    return <View ref={ref => this.viewRef = ref} style={[styles.wrapSwipe, {height: this.SWIPE_HEIGHT, marginTop: MARGIN_TOP}, style]}>
-        <View {...this._panResponder.panHandlers} style={{backgroundColor: backgroundColor || 'white'}}>
+    const {collapsed, animatedY} = this.state
+    return <Animated.View style={[styles.wrapSwipe, {height: animatedY, marginTop: MARGIN_TOP}, style]}>
+        <View style={{backgroundColor: backgroundColor || 'white'}}  {...this._panResponder.panHandlers}>
           <TouchableOpacity
             activeOpacity={1}
-            style={{height: this.SWIPE_HEIGHT}}
             onPress={this.triggerCollapse}>
             {itemMini}
           </TouchableOpacity>
         </View>
-      <View style={[{backgroundColor: backgroundColor || 'white', height: this.SWIPE_HEIGHT, flex: 1}]}>
-        {this.customStyle.style.height > 50 ? itemFull : <View />}
+      <View style={[{backgroundColor: backgroundColor || 'white', flex: 1}]}>
+        {collapsed ? <View /> : itemFull}
       </View>
-    </View>
+    </Animated.View>
   }
+
   triggerCollapse = () => {
     let {collapsed} = this.state
     return collapsed ? this.showFull() : this.showMini()
@@ -165,7 +148,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'white',
     position: 'absolute',
+    padding: 0,
     bottom: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     left: 0,
     right: 0
   }
