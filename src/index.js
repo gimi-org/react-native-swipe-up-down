@@ -75,7 +75,7 @@ export default class SwipeUpDown extends Component<Props, State> {
     let {animatedY, offset} = this.state
     setDeltaY(this.convertRange(DEVICE_HEIGHT + gestureState.dy, [0, DEVICE_HEIGHT], [0, 180]))
     // SWIPE DOWN
-    if (gestureState.dy > 0) {
+    if (gestureState.dy > 0  && !this.checkCollapsed) {
       animatedY.setValue(DEVICE_HEIGHT - gestureState.dy - offset)
       onMoveDown && onMoveDown()
     }
@@ -102,9 +102,10 @@ export default class SwipeUpDown extends Component<Props, State> {
   }
 
   showFull() {
+    this.setState({collapsed: false})
     const {onShowFull, setDeltaY} = this.props
     let {animatedY, offset} = this.state
-    this.setState({collapsed: false})
+    this.checkCollapsed = false
     Animated.spring(animatedY, {toValue: DEVICE_HEIGHT - offset, friction: 7}).start()
     setDeltaY(180)
     onShowFull && onShowFull()
