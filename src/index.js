@@ -14,8 +14,7 @@ import {
 import SwipeIcon from './components/SwipeIcon';
 import images from './assets/images';
 
-const MARGIN_TOP = Platform.OS === 'ios' ? 0 : 20;
-const DEVICE_HEIGHT = Dimensions.get('window').height - MARGIN_TOP;
+const MARGIN_TOP = Platform.OS === 'ios' ? 0 : 20
 type Props = {
   swipeHeight?: number,
   itemMini: object,
@@ -27,13 +26,15 @@ type Props = {
   onMoveDown?: () => void,
   onMoveUp?: () => void,
   setDeltaY?: Function,
-  backgroundColor?: string
+  backgroundColor?: string,
+  headerStyle?: *
 }
 
 type State = {
   collapsed: boolean,
   animatedY: *,
-  offset: number
+  offset: number,
+  deviceHeight: number
 }
 let self
 export default class SwipeUpDown extends Component<Props, State> {
@@ -45,7 +46,8 @@ export default class SwipeUpDown extends Component<Props, State> {
     this.state = {
       collapsed: true,
       animatedY: new Animated.Value(50),
-      offset: props.withTabBar ? 100 : 50
+      offset: props.iPhoneX ? 200 : props.withTabBar ? 100 : 50,
+      deviceHeight: Dimensions.get('window').height - MARGIN_TOP
     }
     this.disablePressToShow = props.disablePressToShow || false;
     this.SWIPE_HEIGHT = props.swipeHeight || 50;
@@ -72,12 +74,21 @@ export default class SwipeUpDown extends Component<Props, State> {
 
   _onPanResponderMove(event, gestureState) {
     const {onMoveUp, onMoveDown, setDeltaY} = this.props
-    let {animatedY, offset} = this.state
-    setDeltaY(this.convertRange(DEVICE_HEIGHT + gestureState.dy, [0, DEVICE_HEIGHT], [0, 180]))
+    let {deviceHeight, animatedY, offset} = this.state
+    setDeltaY(this.convertRange(deviceHeight + gestureState.dy, [0, deviceHeight], [0, 180]))
+
+    // BOUNCE UP
+    if (animatedY._value + 20 >= deviceHeight - offset) {
+      return animatedY.setValue(deviceHeight - gestureState.dy - offset)
+    }
+    // BOUNCE DOWN
+    if (animatedY._value <= offset) {
+      return animatedY.setValue(-gestureState.dy + this.SWIPE_HEIGHT)
+    }
     // SWIPE DOWN
     if (gestureState.dy > 0) {
-      animatedY.setValue(DEVICE_HEIGHT - gestureState.dy - offset)
-      onMoveDown && onMoveDown()
+      animatedY.setValue(deviceHeight - gestureState.dy - offset)
+      return onMoveDown && onMoveDown()
     }
     // SWIPE UP
     else if (this.checkCollapsed && gestureState.dy < 0) {
@@ -85,7 +96,7 @@ export default class SwipeUpDown extends Component<Props, State> {
     }
     else if (this.checkCollapsed && gestureState.dy < -20) {
       animatedY.setValue(-gestureState.dy + this.SWIPE_HEIGHT)
-      onMoveUp && onMoveUp();
+      return onMoveUp && onMoveUp()
     }
   }
 
@@ -103,9 +114,9 @@ export default class SwipeUpDown extends Component<Props, State> {
 
   showFull() {
     const {onShowFull, setDeltaY} = this.props
-    let {animatedY, offset} = this.state
+    let {deviceHeight, animatedY, offset} = this.state
     this.setState({collapsed: false})
-    Animated.spring(animatedY, {toValue: DEVICE_HEIGHT - offset, friction: 7}).start()
+    Animated.spring(animatedY, {toValue: deviceHeight - offset, friction: 7}).start()
     setDeltaY(180)
     onShowFull && onShowFull()
   }
@@ -121,10 +132,10 @@ export default class SwipeUpDown extends Component<Props, State> {
   }
 
   render() {
-    const {itemMini, itemFull, style, backgroundColor} = this.props
+    const {itemMini, itemFull, style, backgroundColor, headerStyle} = this.props
     const {collapsed, animatedY} = this.state
     return <Animated.View style={[styles.wrapSwipe, {height: animatedY, marginTop: MARGIN_TOP}, style]}>
-        <View style={{backgroundColor: backgroundColor || 'white'}}  {...this._panResponder.panHandlers}>
+        <View style={[{backgroundColor: backgroundColor || 'white'}]}  {...this._panResponder.panHandlers}>
           <TouchableOpacity
             activeOpacity={1}
             onPress={this.triggerCollapse}>
@@ -145,13 +156,8 @@ export default class SwipeUpDown extends Component<Props, State> {
 
 const styles = StyleSheet.create({
   wrapSwipe: {
-    flex: 1,
-    backgroundColor: 'white',
     position: 'absolute',
-    padding: 0,
     bottom: 0,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
     left: 0,
     right: 0
   }
