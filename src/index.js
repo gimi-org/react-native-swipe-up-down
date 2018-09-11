@@ -46,7 +46,7 @@ export default class SwipeUpDown extends Component<Props, State> {
     this.state = {
       collapsed: true,
       animatedY: new Animated.Value(50),
-      offset: props.iPhoneX ? 200 : props.withTabBar ? 100 : 50,
+      offset: this.getOffset(props),
       deviceHeight: Dimensions.get('window').height - MARGIN_TOP
     }
     this.disablePressToShow = props.disablePressToShow || false;
@@ -70,6 +70,16 @@ export default class SwipeUpDown extends Component<Props, State> {
       onPanResponderRelease: this._onPanResponderRelease.bind(this)
     })
     self = this
+  }
+
+  getOffset = (props: Props) => {
+    let {iphoneX, withTabBar} = props
+    switch (true) {
+      case iphoneX && withTabBar: return 200
+      case iphoneX && !withTabBar: return 150
+      case withTabBar: return 100
+      default: return 50
+    }
   }
 
   _onPanResponderMove(event, gestureState) {
