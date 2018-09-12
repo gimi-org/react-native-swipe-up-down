@@ -27,7 +27,7 @@ type Props = {
   onMoveUp?: () => void,
   setDeltaY?: Function,
   backgroundColor?: string,
-  headerStyle?: *
+  iPhoneX: boolean
 }
 
 type State = {
@@ -73,10 +73,10 @@ export default class SwipeUpDown extends Component<Props, State> {
   }
 
   getOffset = (props: Props) => {
-    let {iphoneX, withTabBar} = props
+    let {iPhoneX, withTabBar} = props
     switch (true) {
-      case iphoneX && withTabBar: return 200
-      case iphoneX && !withTabBar: return 150
+      case iPhoneX && withTabBar: return 200
+      case iPhoneX && !withTabBar: return 150
       case withTabBar: return 100
       default: return 50
     }
