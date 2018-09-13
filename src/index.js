@@ -64,7 +64,8 @@ export default class SwipeUpDown extends Component<Props, State> {
     };
     this.checkCollapsed = true
     this._panResponder = PanResponder.create({
-      onMoveShouldSetPanResponder: (event, gestureState) => true,
+      onStartShouldSetPanResponderCapture: (e: Object, gs: Object) => gs.dy !== 0,
+      onMoveShouldSetPanResponder: (e: Object, gs: Object) => gs.dy !== 0,
       // onPanResponderGrant: () => this.state.collapsed && this.setState({collapsed: !this.state.collapsed}),
       onPanResponderMove: this._onPanResponderMove.bind(this),
       onPanResponderRelease: this._onPanResponderRelease.bind(this)
@@ -123,16 +124,15 @@ export default class SwipeUpDown extends Component<Props, State> {
   }
 
   showFull() {
+    this.setState({collapsed: false})
     const {onShowFull, setDeltaY} = this.props
     let {deviceHeight, animatedY, offset} = this.state
-    this.setState({collapsed: false})
     Animated.spring(animatedY, {toValue: deviceHeight - offset, friction: 7}).start()
     setDeltaY(180)
     onShowFull && onShowFull()
   }
 
   showMini() {
-    this.setState({collapsed: true})
     const {onShowMini, setDeltaY} = this.props
     let {animatedY} = this.state
     Animated.spring(animatedY, {toValue: 50, friction: 7}).start()
@@ -147,6 +147,8 @@ export default class SwipeUpDown extends Component<Props, State> {
     return <Animated.View style={[styles.wrapSwipe, {height: animatedY, marginTop: MARGIN_TOP}, style]}>
         <View style={[{backgroundColor: backgroundColor || 'white'}]}  {...this._panResponder.panHandlers}>
           <TouchableOpacity
+          pointerEvents='box-none'
+            style={styles.button}
             activeOpacity={1}
             onPress={this.triggerCollapse}>
             {itemMini}
@@ -160,6 +162,7 @@ export default class SwipeUpDown extends Component<Props, State> {
 
   triggerCollapse = () => {
     let {collapsed} = this.state
+    this.setState({collapsed: !collapsed})
     return collapsed ? this.showFull() : this.showMini()
   }
 }
@@ -170,5 +173,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0
+  },
+  button: {
+    zIndex: 2000
   }
 });
